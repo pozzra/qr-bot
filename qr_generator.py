@@ -53,17 +53,69 @@ def generate_qr_from_text(message):
         bot.reply_to(message, f"មានបញ្ហាកើតឡើង៖ {e}")
 
 # Flask integration for Render
-from flask import Flask
+from flask import Flask, render_template, request, send_file
 from threading import Thread
+import io
+import base64
 
 app = Flask('')
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
-    return "I am alive"
+    qr_image = None
+    data = None
+    if request.method == 'POST':
+        data = request.form.get('data')
+        if data:
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Save to buffer
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            buf.seek(0)
+            
+            # Encode to base64
+            qr_image = base64.b64encode(buf.getvalue()).decode('ascii')
+            
+    return render_template('index.html', qr_image=qr_image, data=data)
+
+@app.route('/download')
+def download_qr():
+    data = request.args.get('data')
+    if not data:
+        return "No data provided", 400
+        
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    
+    return send_file(
+        buf,
+        mimetype='image/png',
+        as_attachment=True,
+        download_name='qrcode.png'
+    )
 
 def run():
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 
 def keep_alive():
     t = Thread(target=run)
