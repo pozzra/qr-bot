@@ -70,6 +70,8 @@ def keep_alive():
     t.start()
 
 if __name__ == "__main__":
+    import socket
+    print(f"Starting Bot on Host: {socket.gethostname()}, PID: {os.getpid()}")
     keep_alive()
     print("Bot is running...")
     bot.infinity_polling()
